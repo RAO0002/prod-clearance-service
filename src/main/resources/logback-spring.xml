@@ -1,80 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="LOG_FILE_PATH" value="${LOG_FILE_PATH:-./logs}"/>
-    <property name="LOG_FILE_MAX_SIZE" value="10MB"/>
-    <property name="LOG_FILE_MAX_HISTORY" value="30"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"/>
+    <property name="LOG_DIR" value="logs"/>
 
-    <!-- Console Appender for local development -->
+    <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>
-                %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
-            </pattern>
-            <charset>UTF-8</charset>
-        </encoder>
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>${LOG_PATTERN}</pattern>
+        </layout>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
     </appender>
 
-    <!-- File Appender for production -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_FILE_PATH}/prod-clearance-service.log</file>
-        <encoder>
-            <pattern>
-                %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
-            </pattern>
-            <charset>UTF-8</charset>
+    <!-- JSON File Appender for Production Logging -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/application.log</file>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"service": "prod-clearance-service", "environment": "production"}</customFields>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>
-                ${LOG_FILE_PATH}/prod-clearance-service-%d{yyyy-MM-dd}.%i.log.gz
-            </fileNamePattern>
-            <maxFileSize>${LOG_FILE_MAX_SIZE}</maxFileSize>
-            <maxHistory>${LOG_FILE_MAX_HISTORY}</maxHistory>
+            <fileNamePattern>${LOG_DIR}/application-%d{yyyy-MM-dd}-%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- Error File Appender -->
-    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_FILE_PATH}/prod-clearance-service-error.log</file>
-        <filter class="ch.qos.logback.classic.filter.LevelFilter">
-            <level>ERROR</level>
-            <onMatch>ACCEPT</onMatch>
-            <onMismatch>DENY</onMismatch>
-        </filter>
-        <encoder>
-            <pattern>
-                %d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
-            </pattern>
-            <charset>UTF-8</charset>
-        </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>
-                ${LOG_FILE_PATH}/prod-clearance-service-error-%d{yyyy-MM-dd}.%i.log.gz
-            </fileNamePattern>
-            <maxFileSize>${LOG_FILE_MAX_SIZE}</maxFileSize>
-            <maxHistory>${LOG_FILE_MAX_HISTORY}</maxHistory>
-        </rollingPolicy>
-    </appender>
-
-    <!-- Async Appender for performance -->
-    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
-        <queueSize>1024</queueSize>
+    <!-- Async Appender for Better Performance -->
+    <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
         <discardingThreshold>0</discardingThreshold>
-        <appender-ref ref="FILE"/>
+        <appender-ref ref="JSON_FILE"/>
     </appender>
 
-    <!-- Logger Configurations -->
+    <!-- Loggers -->
     <logger name="com.company.prodclearance" level="DEBUG"/>
     <logger name="org.springframework" level="INFO"/>
-    <logger name="org.springframework.data.mongodb" level="DEBUG"/>
+    <logger name="org.mongodb" level="INFO"/>
     <logger name="org.apache.kafka" level="INFO"/>
-    <logger name="org.springframework.kafka" level="INFO"/>
-    <logger name="io.micrometer" level="INFO"/>
 
     <!-- Root Logger -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="ASYNC_FILE"/>
-        <appender-ref ref="ERROR_FILE"/>
+        <appender-ref ref="ASYNC_JSON"/>
     </root>
+
+    <!-- Spring Profiles -->
+    <springProfile name="dev">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_JSON"/>
+        </root>
+    </springProfile>
 </configuration>
