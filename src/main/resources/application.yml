@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: prod-clearance-service
+  
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/prod_clearance}
+      auto-index-creation: true
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: all
+      retries: 3
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+        linger.ms: 10
+        batch.size: 32768
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+      security.protocol: PLAINTEXT
+
+  # Jackson Configuration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      adjust-dates-to-context-timezone: false
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.company.prodclearance: DEBUG
+    org.springframework.data.mongodb: DEBUG
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/prod-clearance-service.log
+    max-size: 10MB
+    max-history: 30
+
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${APP_ENV:development}
+
+# Application-specific Configuration
+app:
+  processing:
+    poll-interval-seconds: ${POLL_INTERVAL_SECONDS:30}
+    batch-size: ${BATCH_SIZE:100}
+    max-retry-attempts: ${MAX_RETRY_ATTEMPTS:3}
+    retry-backoff-delay-ms: ${RETRY_BACKOFF_DELAY_MS:1000}
+    retry-max-delay-ms: ${RETRY_MAX_DELAY_MS:10000}
+    thread-pool-size: ${THREAD_POOL_SIZE:5}
+  
+  kafka:
+    topic-name: ${KAFKA_TOPIC_NAME:clr-delta-prod}
+    schema-subject: ${KAFKA_SCHEMA_SUBJECT:Clr-Delta-Prod-value}
+    partition-count: ${KAFKA_PARTITION_COUNT:3}
+    replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
+  
+  mongodb:
+    collection-name: group_process_status
+    query-timeout-ms: ${MONGO_QUERY_TIMEOUT_MS:30000}
+  
+  monitoring:
+    enabled: true
+    metrics-push-interval-seconds: ${METRICS_PUSH_INTERVAL:60}
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:200}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    accept-count: 100
+
+# Spring Boot Configuration
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
